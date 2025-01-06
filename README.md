@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/noiwid/freebox_custom)](https://github.com/noiwid/freebox_custom/releases)
 
-Une intégration personnalisée pour [Home Assistant](https://www.home-assistant.io) permettant de gérer les équipements connectés de la Freebox Delta (v7), notamment :
+Une intégration personnalisée pour [Home Assistant](https://www.home-assistant.io) permettant de gérer les équipements connectés de la Freebox Delta (v7), et du pack sécurité optionnel :
 
 - **Volets roulants Somfy RTS** (configuration préalable via l'application Freebox requise)
 - **Alarme Freebox** et ses capteurs (mouvements, ouvertures de portes, etc.)

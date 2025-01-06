@@ -89,9 +89,6 @@ class FreeboxRouter:
     async def setup(self) -> None:
         """Set up a Freebox router."""
         try:
-            if "fbxos.fr" in self._host:
-                self._host = DEFAULT_HOST
-                
             self._api = await get_api(self.hass, self._host)
             await self._api.open(self._host, self._port)
     

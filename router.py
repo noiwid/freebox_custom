@@ -1,147 +1,130 @@
 """Represent the Freebox router and its devices and sensors."""
-
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from contextlib import suppress
-from datetime import datetime
-import json
+from datetime import datetime, timedelta
 import logging
 import os
 from pathlib import Path
-import re
 from typing import Any
 
 from freebox_api import Freepybox
-from freebox_api.api.call import Call
-from freebox_api.api.home import Home
 from freebox_api.api.wifi import Wifi
-from freebox_api.exceptions import HttpRequestError, NotOpenError
+from freebox_api.exceptions import HttpRequestError, InsufficientPermissionsError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.storage import Store
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import slugify
+from homeassistant.helpers import storage
 
 from .const import (
     API_VERSION,
     APP_DESC,
-    CONNECTION_SENSORS_KEYS,
+    CONF_USE_HOME,
+    CONNECTION_SENSORS,
     DOMAIN,
-    HOME_COMPATIBLE_CATEGORIES,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def is_json(json_str: str) -> bool:
-    """Validate if a String is a JSON value or not."""
-    try:
-        json.loads(json_str)
-    except (ValueError, TypeError) as err:
-        _LOGGER.error(
-            "Failed to parse JSON '%s', error '%s'",
-            json_str,
-            err,
-        )
-        return False
-    return True
-
+SCAN_INTERVAL = timedelta(seconds=10)
 
 async def get_api(hass: HomeAssistant, host: str) -> Freepybox:
     """Get the Freebox API."""
-    freebox_path = Store(hass, STORAGE_VERSION, STORAGE_KEY).path
+    store = storage.Store(hass, STORAGE_KEY, str(STORAGE_VERSION))
+    freebox_path = store.path
 
     if not os.path.exists(freebox_path):
         await hass.async_add_executor_job(os.makedirs, freebox_path)
 
     token_file = Path(f"{freebox_path}/{slugify(host)}.conf")
-
+    
     return Freepybox(APP_DESC, token_file, API_VERSION)
-
-
-async def get_hosts_list_if_supported(
-    fbx_api: Freepybox,
-) -> tuple[bool, list[dict[str, Any]]]:
-    """Hosts list is not supported when freebox is configured in bridge mode."""
-    supports_hosts: bool = True
-    fbx_devices: list[dict[str, Any]] = []
-    try:
-        fbx_devices = await fbx_api.lan.get_hosts_list() or []
-    except HttpRequestError as err:
-        if (
-            (matcher := re.search(r"Request failed \(APIResponse: (.+)\)", str(err)))
-            and is_json(json_str := matcher.group(1))
-            and (json_resp := json.loads(json_str)).get("error_code") == "nodev"
-        ):
-            # No need to retry, Host list not available
-            supports_hosts = False
-            _LOGGER.debug(
-                "Host list is not available using bridge mode (%s)",
-                json_resp.get("msg"),
-            )
-
-        else:
-            raise
-
-    return supports_hosts, fbx_devices
-
-
+    
+async def reset_api(hass: HomeAssistant, host: str):
+    """Delete the config file to be able to restart a new pairing process."""
+    store = storage.Store(hass, STORAGE_KEY, str(STORAGE_VERSION))
+    freebox_path = store.path
+    token_file = Path(f"{freebox_path}/{slugify(host)}.conf")
+    token_file.unlink(True)
+    
 class FreeboxRouter:
     """Representation of a Freebox router."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        api: Freepybox,
-        freebox_config: Mapping[str, Any],
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize a Freebox router."""
         self.hass = hass
+        self._entry = entry
         self._host = entry.data[CONF_HOST]
         self._port = entry.data[CONF_PORT]
+        self._use_home = entry.options.get(
+            CONF_USE_HOME, entry.data.get(CONF_USE_HOME, False)
+        )
 
-        self._api: Freepybox = api
-        self.name: str = freebox_config["model_info"]["pretty_name"]
-        self.mac: str = freebox_config["mac"]
-        self._sw_v: str = freebox_config["firmware_version"]
-        self._attrs: dict[str, Any] = {}
+        self._api: Freepybox = None
+        self.name = None
+        self.mac = None
+        self._sw_v = None
+        self._attrs = {}
 
-        self.supports_hosts = True
         self.devices: dict[str, dict[str, Any]] = {}
         self.disks: dict[int, dict[str, Any]] = {}
-        self.supports_raid = True
-        self.raids: dict[int, dict[str, Any]] = {}
         self.sensors_temperature: dict[str, int] = {}
         self.sensors_connection: dict[str, float] = {}
         self.call_list: list[dict[str, Any]] = []
-        self.home_granted = True
         self.home_devices: dict[str, Any] = {}
-        self.listeners: list[Callable[[], None]] = []
+
+        self._unsub_dispatcher = None
+        self._option_listener = None
+        self.listeners = []
+        self._warning_once = False
+
+    async def setup(self) -> None:
+        """Set up a Freebox router."""
+        try:
+            if "fbxos.fr" in self._host:
+                self._host = DEFAULT_HOST
+                
+            self._api = await get_api(self.hass, self._host)
+            await self._api.open(self._host, self._port)
+    
+            # System
+            fbx_config = await self._api.system.get_config()
+            self.mac = fbx_config["mac"]
+            self.name = fbx_config["model_info"]["pretty_name"]
+            self._sw_v = fbx_config["firmware_version"]
+    
+        except HttpRequestError as e:
+            _LOGGER.error("Failed to connect to Freebox: %s", str(e))
+            raise ConfigEntryNotReady("Failed to connect to Freebox") from e
+        except Exception as e:
+            _LOGGER.error("Unexpected error while connecting to Freebox: %s", str(e))
+            raise ConfigEntryNotReady(f"Unexpected error: {str(e)}") from e
+    
+        # Devices & sensors
+        await self.update_all()
+        self._unsub_dispatcher = async_track_time_interval(
+            self.hass, self.update_all, SCAN_INTERVAL
+        )
 
     async def update_all(self, now: datetime | None = None) -> None:
         """Update all Freebox platforms."""
         await self.update_device_trackers()
         await self.update_sensors()
-        await self.update_home_devices()
+        if self._use_home:
+            await self.update_home_devices()
 
     async def update_device_trackers(self) -> None:
         """Update Freebox devices."""
         new_device = False
-
-        fbx_devices: list[dict[str, Any]] = []
-
-        # Access to Host list not available in bridge mode, API return error_code 'nodev'
-        if self.supports_hosts:
-            self.supports_hosts, fbx_devices = await get_hosts_list_if_supported(
-                self._api
-            )
+        fbx_devices: [dict[str, Any]] = await self._api.lan.get_hosts_list()
 
         # Adds the Freebox itself
         fbx_devices.append(
@@ -170,18 +153,18 @@ class FreeboxRouter:
 
     async def update_sensors(self) -> None:
         """Update Freebox sensors."""
-
         # System sensors
         syst_datas: dict[str, Any] = await self._api.system.get_config()
 
         # According to the doc `syst_datas["sensors"]` is temperature sensors in celsius degree.
         # Name and id of sensors may vary under Freebox devices.
         for sensor in syst_datas["sensors"]:
-            self.sensors_temperature[sensor["name"]] = sensor.get("value")
+            if "value" in sensor:
+                self.sensors_temperature[sensor["name"]] = sensor["value"]
 
         # Connection sensors
         connection_datas: dict[str, Any] = await self._api.connection.get_status()
-        for sensor_key in CONNECTION_SENSORS_KEYS:
+        for sensor_key in CONNECTION_SENSORS:
             self.sensors_connection[sensor_key] = connection_datas[sensor_key]
 
         self._attrs = {
@@ -198,60 +181,46 @@ class FreeboxRouter:
         self.call_list = await self._api.call.get_calls_log()
 
         await self._update_disks_sensors()
-        await self._update_raids_sensors()
 
         async_dispatcher_send(self.hass, self.signal_sensor_update)
 
     async def _update_disks_sensors(self) -> None:
         """Update Freebox disks."""
         # None at first request
-        fbx_disks: list[dict[str, Any]] = await self._api.storage.get_disks() or []
+        fbx_disks: [dict[str, Any]] = await self._api.storage.get_disks() or []
 
         for fbx_disk in fbx_disks:
-            disk: dict[str, Any] = {**fbx_disk}
-            disk_part: dict[int, dict[str, Any]] = {}
-            for fbx_disk_part in fbx_disk["partitions"]:
-                disk_part[fbx_disk_part["id"]] = fbx_disk_part
-            disk["partitions"] = disk_part
-            self.disks[fbx_disk["id"]] = disk
-
-    async def _update_raids_sensors(self) -> None:
-        """Update Freebox raids."""
-        # None at first request
-        if not self.supports_raid:
-            return
-
-        try:
-            fbx_raids: list[dict[str, Any]] = await self._api.storage.get_raids() or []
-        except HttpRequestError:
-            self.supports_raid = False
-            _LOGGER.warning(
-                "Router %s API does not support RAID",
-                self.name,
-            )
-            return
-
-        for fbx_raid in fbx_raids:
-            self.raids[fbx_raid["id"]] = fbx_raid
+            self.disks[fbx_disk["id"]] = fbx_disk
 
     async def update_home_devices(self) -> None:
-        """Update Home devices (alarm, light, sensor, switch, remote ...)."""
-        if not self.home_granted:
-            return
-
+        """Update Home devices (light, cover, alarm, sensors ...)."""
+        new_device = False
         try:
-            home_nodes: list[Any] = await self.home.get_home_nodes() or []
-        except HttpRequestError:
-            self.home_granted = False
+            home_nodes: dict[str, Any] = await self._api.home.get_home_nodes()
+        except InsufficientPermissionsError:
             _LOGGER.warning("Home access is not granted")
             return
 
-        new_device = False
         for home_node in home_nodes:
-            if home_node["category"] in HOME_COMPATIBLE_CATEGORIES:
-                if self.home_devices.get(home_node["id"]) is None:
-                    new_device = True
-                self.home_devices[home_node["id"]] = home_node
+            if home_node["category"] not in [
+                "pir",
+                "camera",
+                "alarm",
+                "dws",
+                "kfb",
+                "basic_shutter",
+                "opener",
+                "shutter",
+            ]:
+                if self._warning_once is False:
+                    _LOGGER.warning("Node not supported:\n" + str(home_node))
+                continue
+
+            if self.home_devices.get(home_node["id"]) is None:
+                new_device = True
+            self.home_devices[home_node["id"]] = home_node
+
+        self._warning_once = True
 
         async_dispatcher_send(self.hass, self.signal_home_device_update)
 
@@ -264,20 +233,26 @@ class FreeboxRouter:
 
     async def close(self) -> None:
         """Close the connection."""
-        with suppress(NotOpenError):
+        if self._api is not None:
             await self._api.close()
+            self._api = None
+
+        if self._unsub_dispatcher is not None:
+            self._unsub_dispatcher()
+
+        if self._option_listener is not None:
+            self._option_listener()
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return the device information."""
-        return DeviceInfo(
-            configuration_url=f"https://{self._host}:{self._port}/",
-            connections={(CONNECTION_NETWORK_MAC, self.mac)},
-            identifiers={(DOMAIN, self.mac)},
-            manufacturer="Freebox SAS",
-            name=self.name,
-            sw_version=self._sw_v,
-        )
+        return {
+            "connections": {(CONNECTION_NETWORK_MAC, self.mac)},
+            "identifiers": {(DOMAIN, self.mac)},
+            "name": self.name,
+            "manufacturer": "Freebox SAS",
+            "sw_version": self._sw_v,
+        }
 
     @property
     def signal_device_new(self) -> str:
@@ -290,6 +265,11 @@ class FreeboxRouter:
         return f"{DOMAIN}-{self._host}-home-device-new"
 
     @property
+    def signal_home_device_update(self) -> str:
+        """Event specific per Freebox entry to signal update in home devices."""
+        return f"{DOMAIN}-{self._host}-home-device-update"
+
+    @property
     def signal_device_update(self) -> str:
         """Event specific per Freebox entry to signal updates in devices."""
         return f"{DOMAIN}-{self._host}-device-update"
@@ -300,26 +280,11 @@ class FreeboxRouter:
         return f"{DOMAIN}-{self._host}-sensor-update"
 
     @property
-    def signal_home_device_update(self) -> str:
-        """Event specific per Freebox entry to signal update in home devices."""
-        return f"{DOMAIN}-{self._host}-home-device-update"
-
-    @property
     def sensors(self) -> dict[str, Any]:
         """Return sensors."""
         return {**self.sensors_temperature, **self.sensors_connection}
 
     @property
-    def call(self) -> Call:
-        """Return the call."""
-        return self._api.call
-
-    @property
     def wifi(self) -> Wifi:
         """Return the wifi."""
         return self._api.wifi
-
-    @property
-    def home(self) -> Home:
-        """Return the home."""
-        return self._api.home

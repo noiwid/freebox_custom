@@ -1,12 +1,12 @@
 {
   "domain": "freebox",
   "name": "Freebox",
-  "version": "1.15",
+  "version": "1.2",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/freebox",
+  "documentation": "https://github.com/noiwid/freebox_custom",
   "requirements": ["freebox-api==0.0.10"],
   "dependencies": ["ffmpeg"],
   "zeroconf": ["_fbx-api._tcp.local."],
-  "codeowners": ["@hacf-fr", "@Quentame", "@gvigroux"],
+  "codeowners": ["@hacf-fr", "@Quentame", "@gvigroux", "@noiwid"],
   "iot_class": "local_polling"
 }

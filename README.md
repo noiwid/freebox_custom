@@ -13,7 +13,7 @@ Une intégration personnalisée pour [Home Assistant](https://www.home-assistant
   - Utilisation des ressources (CPU, RAM).
   - Statut du stockage interne et externe.
 
-Cette intégration inclut un **patch compatible avec Home Assistant 2025.01**.
+Cette intégration inclut un **patch compatible avec Home Assistant 2025.1.0**.
 
 ## Fonctionnalités
 
@@ -54,8 +54,7 @@ Ce projet est maintenu de manière communautaire. Si vous rencontrez un problèm
 ---
 
 ## À propos
-
-Cette intégration s’inspire du travail réalisé sur une version précédente dont le dépôt n’est plus disponible. Elle inclut des correctifs et des mises à jour pour assurer la compatibilité avec les versions récentes de Home Assistant.
+Cette intégration se réponse sur le travail réalisé par @Quentame & @gvigroux sur une version précédente de l'intégratin dont le dépôt ne semble plus disponible. Elle inclut des correctifs et des mises à jour pour assurer la compatibilité avec la dernière version de Home Assistant (2025.1.0).
 
 **Auteur :** [noiwid](https://github.com/noiwid)
 

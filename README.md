@@ -52,9 +52,8 @@ Cette intégration inclut un **patch compatible avec Home Assistant 2025.1.0**.
 Ce projet est maintenu de manière communautaire. Si vous rencontrez un problème ou avez des questions, vous pouvez ouvrir une issue ou participer aux discussions existantes. Les utilisateurs sont libres d'interagir entre eux pour partager des solutions ou des conseils.
 
 ---
-
 ## À propos
-Cette intégration se réponse sur le travail réalisé par @Quentame & @gvigroux sur une version précédente de l'intégratin dont le dépôt ne semble plus disponible. Elle inclut des correctifs et des mises à jour pour assurer la compatibilité avec la dernière version de Home Assistant (2025.1.0).
+Cette intégration se réponse sur le travail réalisé par [Quentame](https://github.com/Quentame) & [gvigroux](https://github.com/gvigroux) sur une version précédente de l'intégratoin dont le dépôt ne semble plus disponible. Elle inclut des correctifs et des mises à jour pour assurer la compatibilité avec la dernière version de Home Assistant (2025.1.0).
 
 **Auteur :** [noiwid](https://github.com/noiwid)
 

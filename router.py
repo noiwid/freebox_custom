@@ -6,6 +6,9 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+from functools import partial
+import ssl
+import aiofiles
 
 from freebox_api import Freepybox
 from freebox_api.api.wifi import Wifi
@@ -36,6 +39,14 @@ _LOGGER = logging.getLogger(__name__)
 
 SCAN_INTERVAL = timedelta(seconds=10)
 
+def _configure_ssl_context(api: Freepybox) -> None:
+    """Configure the SSL context in a separate thread."""
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    ssl_ctx.set_alpn_protocols(['http/1.1'])
+    api._ssl_context = ssl_ctx
+
 async def get_api(hass: HomeAssistant, host: str) -> Freepybox:
     """Get the Freebox API."""
     store = storage.Store(hass, STORAGE_KEY, str(STORAGE_VERSION))
@@ -46,15 +57,23 @@ async def get_api(hass: HomeAssistant, host: str) -> Freepybox:
 
     token_file = Path(f"{freebox_path}/{slugify(host)}.conf")
     
-    return Freepybox(APP_DESC, token_file, API_VERSION)
+    # Créer l'API avec un contexte SSL préconfiguré
+    api = Freepybox(APP_DESC, token_file, API_VERSION)
     
+    # Configuration SSL dans un executor
+    await hass.async_add_executor_job(
+        partial(_configure_ssl_context, api)
+    )
+    
+    return api
+
 async def reset_api(hass: HomeAssistant, host: str):
     """Delete the config file to be able to restart a new pairing process."""
     store = storage.Store(hass, STORAGE_KEY, str(STORAGE_VERSION))
     freebox_path = store.path
     token_file = Path(f"{freebox_path}/{slugify(host)}.conf")
-    token_file.unlink(True)
-    
+    await hass.async_add_executor_job(token_file.unlink, True)
+
 class FreeboxRouter:
     """Representation of a Freebox router."""
 
@@ -89,8 +108,11 @@ class FreeboxRouter:
     async def setup(self) -> None:
         """Set up a Freebox router."""
         try:
+            # Get API with preconfigured SSL context
             self._api = await get_api(self.hass, self._host)
-            await self._api.open(self._host, self._port)
+            
+            # Open connection
+            await self._api.open(self._host, self._port)  # Revenons à la méthode standard
     
             # System
             fbx_config = await self._api.system.get_config()

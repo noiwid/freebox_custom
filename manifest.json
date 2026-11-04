@@ -1,12 +1,25 @@
 {
   "domain": "freebox",
   "name": "Freebox",
-  "version": "1.2",
+  "codeowners": [
+    "@noiwid"
+  ],
   "config_flow": true,
+  "dependencies": [
+    "ffmpeg"
+  ],
   "documentation": "https://github.com/noiwid/freebox_custom",
-  "requirements": ["freebox-api==0.0.10"],
-  "dependencies": ["ffmpeg"],
-  "zeroconf": ["_fbx-api._tcp.local."],
-  "codeowners": ["@hacf-fr", "@Quentame", "@gvigroux", "@noiwid"],
-  "iot_class": "local_polling"
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "loggers": [
+    "freebox_api"
+  ],
+  "requirements": [
+    "freebox-api==1.3.1"
+  ],
+  "zeroconf": [
+    "_fbx-api._tcp.local."
+  ],
+  "version": "2026.10.4.1",
+  "issue_tracker": "https://github.com/noiwid/freebox_custom/issues"
 }

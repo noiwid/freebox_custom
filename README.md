@@ -2,59 +2,54 @@
 
 [![Release](https://img.shields.io/github/v/release/noiwid/freebox_custom)](https://github.com/noiwid/freebox_custom/releases)
 
-Une intégration personnalisée pour [Home Assistant](https://www.home-assistant.io) permettant de gérer les équipements connectés de la Freebox Delta (v7), et du pack sécurité optionnel :
+L'intégration **Freebox officielle** de Home Assistant, avec ce qui lui manque encore pour la Freebox Delta (v7) et son pack sécurité :
 
-- **Volets roulants Somfy RTS** (configuration préalable via l'application Freebox requise)
-- **Alarme Freebox** et ses capteurs (mouvements, ouvertures de portes, etc.)
-- **Composants liés au pack sécurité** (caméras, détecteurs de mouvement et d'ouverture)
-- **Device tracker** : visibilité sur les différents appareils connectés à la box et leur statut (home/away).
-- **Monitoring hardware** : accès aux informations matérielles de la Freebox, notamment :
-  - Température des composants internes (CPU, disque dur, etc.).
-  - Utilisation des ressources (CPU, RAM).
-  - Statut du stockage interne et externe.
+- **Volets roulants RTS** (`cover`) : monter, descendre, stop. Les volets doivent d'abord être appairés dans l'application Freebox Home.
+- **Volets IO, stores et portes de garage** (`cover`, catégories `shutter` et `opener`) : avec position. Code repris de la version 2025.01, pas encore retesté sur ce matériel : ouvrez une issue si quelque chose cloche.
+- **Détecteur de mouvement réactif** : la Freebox ne pousse pas les détections, l'intégration officielle ne les lit qu'au rythme de sa mise à jour générale. Ici le détecteur est interrogé toutes les 2 secondes.
 
-Cette intégration inclut un **patch compatible avec Home Assistant 2025.1.0**.
+Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
 
-## Fonctionnalités
-
-- Contrôle des volets roulants via Home Assistant.
-- Gestion de l'alarme et des capteurs connectés (mouvements, ouvertures).
-- Correction des erreurs liées aux mises à jour récentes de Home Assistant.
-- Prise en charge des certificats SSL configurés dans l'interface Freebox.
+**Version actuelle : 2026.10.4.1**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
 
 ## Installation
 
-1. Clonez ou téléchargez ce dépôt.
-2. Placez les fichiers dans le répertoire suivant de votre instance Home Assistant : **custom_components/freebox/**
-3. Redémarrez Home Assistant.
-4. Ajoutez l'intégration Freebox via l'interface de configuration :
-- Lors de la configuration, saisissez un domaine personnalisé (préalablement configuré dans l'interface Freebox via Paramètres > Nom de domaine, avec un certificat SSL valide) et le port HTTPS associé.
-- Relancez le processus d'authentification (appuyez sur la façade de la Freebox pour accepter).
-- Configurez les autorisations dans l'interface Freebox :  
-  `Paramètres > Gestion des accès` :
-  - Gestion de l’alarme et maison connectée
-  - Accès aux caméras
-  - Contrôle du Freebox Player
-  - Provisionnement des équipements
-5. Vérifiez que toutes les entités (volets, alarme, capteurs) sont correctement remontées.
+1. Copiez les fichiers de ce dépôt dans `custom_components/freebox/` de votre Home Assistant.
+2. Redémarrez Home Assistant. Le dossier remplace l'intégration officielle Freebox, qui porte le même nom.
+3. Si la Freebox n'est pas encore configurée : Paramètres > Appareils et services > Ajouter une intégration > Freebox, puis appuyez sur la flèche droite de la box pour valider.
+4. Dans Freebox OS, `Paramètres > Gestion des accès`, donnez à l'application Home Assistant les droits « Gestion de l'alarme et maison connectée », « Accès aux caméras » et « Provisionnement des équipements ».
 
-## Dépendances
+### Venir de l'ancienne version (2025.01)
 
-- Une Freebox compatible avec l'API (Freebox Delta ou Freebox Révolution).
-- Les volets ou autres équipements doivent être configurés via l’application Freebox avant d’être intégrés à Home Assistant.
+L'ancienne version de ce dépôt reposait sur un fork de 2020 de l'intégration. La nouvelle repart de la version officielle à jour :
+
+- les identifiants d'entités (`cover.volet_salon`, `alarm_control_panel.…`) sont conservés ;
+- remplacez simplement le contenu de `custom_components/freebox/` puis redémarrez ;
+- l'option « use_home_api » disparaît : les équipements Freebox Home sont toujours chargés quand les droits sont donnés.
 
 ## Limitations
 
-- **Certificat SSL** : Si vous utilisez un sous-domaine `xxxx.freeboxos.fr` avec un certificat SSL auto-signé, l'intégration peut échouer. Pour éviter ce problème, configurez un sous-domaine avec un certificat SSL valide dans `Paramètres > Nom de domaine` de l'interface Freebox. 
+- **Pas de position pour les volets RTS** : le protocole RTS n'envoie aucun retour. Home Assistant connaît le dernier ordre envoyé, pas la position réelle du volet.
+- **À chaque mise à jour de Home Assistant**, ce dossier continue de remplacer l'intégration officielle. Une nouvelle version de ce dépôt suit les versions de Home Assistant qui modifient l'intégration Freebox.
+- Les volets sont proposés à l'intégration officielle (PR [home-assistant/core#188666](https://github.com/home-assistant/core/pull/188666)). Une fois fusionnée, ce dépôt ne servira plus qu'au détecteur de mouvement.
+
+## Fichiers modifiés par rapport à l'intégration officielle
+
+| Fichier | Changement |
+|---|---|
+| `cover.py` | Nouveau : volets RTS (`basic_shutter`), volets IO (`shutter`), stores et portes de garage (`opener`) |
+| `const.py` | Catégories `SHUTTER`, `IO_SHUTTER`, `OPENER` chargées, plateforme `cover` ajoutée |
+| `entity.py` | `set_home_endpoint_value` accepte une position (entier) |
+| `binary_sensor.py` | Détecteur de mouvement interrogé toutes les 2 s |
+| `manifest.json` | Champ `version` requis pour une intégration personnalisée |
+| `translations/` | `en.json` et `fr.json` (les traductions de l'officielle ne sont pas reprises automatiquement) |
 
 ## Support
 
-Ce projet est maintenu de manière communautaire. Si vous rencontrez un problème ou avez des questions, vous pouvez ouvrir une issue ou participer aux discussions existantes. Les utilisateurs sont libres d'interagir entre eux pour partager des solutions ou des conseils.
+Ouvrez une issue sur ce dépôt.
 
 ---
-## À propos
-Cette intégration se réponse sur le travail réalisé par [Quentame](https://github.com/Quentame) & [gvigroux](https://github.com/gvigroux) sur une version précédente de l'intégratoin dont le dépôt ne semble plus disponible. Elle inclut des correctifs et des mises à jour pour assurer la compatibilité avec la dernière version de Home Assistant (2025.1.0).
+
+Basé sur l'intégration Freebox de Home Assistant, de [Quentame](https://github.com/Quentame) et des contributeurs [hacf-fr](https://github.com/hacf-fr), et sur le travail de [gvigroux](https://github.com/gvigroux) pour les volets.
 
 **Auteur :** [noiwid](https://github.com/noiwid)
-
-**Contributions bienvenues !**

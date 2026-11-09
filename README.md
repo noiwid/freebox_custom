@@ -10,7 +10,7 @@ L'intégration **Freebox officielle** de Home Assistant, avec ce qui lui manque 
 
 Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
 
-**Version actuelle : 2026.10.4.1**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
+**Version actuelle : 2026.10.4.2**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
 
 ## Installation
 

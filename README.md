@@ -10,7 +10,7 @@ L'intégration **Freebox officielle** de Home Assistant, avec ce qui lui manque 
 
 Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
 
-**Version actuelle : 2026.10.4.2**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
+**Version actuelle : 2026.10.4.3**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
 
 ## Installation
 
@@ -40,7 +40,7 @@ L'ancienne version de ce dépôt reposait sur un fork de 2020 de l'intégration.
 | `cover.py` | Nouveau : volets RTS (`basic_shutter`), volets IO (`shutter`), stores et portes de garage (`opener`) |
 | `const.py` | Catégories `SHUTTER`, `IO_SHUTTER`, `OPENER` chargées, plateforme `cover` ajoutée |
 | `entity.py` | `set_home_endpoint_value` accepte une position (entier) |
-| `binary_sensor.py` | Détecteur de mouvement interrogé toutes les 2 s |
+| `binary_sensor.py` | Détecteur de mouvement interrogé toutes les 2 s (même code que la PR core #191658) |
 | `manifest.json` | Champ `version` requis pour une intégration personnalisée |
 | `translations/` | `en.json` et `fr.json` (les traductions de l'officielle ne sont pas reprises automatiquement) |
 

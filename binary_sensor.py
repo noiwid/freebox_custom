@@ -1,11 +1,12 @@
 """Support for Freebox devices (Freebox v6 and Freebox mini 4K)."""
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 from typing import Any, override
 
 from aiohttp import ClientError
-from freebox_api.exceptions import HttpRequestError
+from freebox_api.exceptions import AuthorizationError, HttpRequestError
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -115,11 +116,23 @@ class FreeboxPirSensor(FreeboxHomeBinarySensor):
     Ajout local : le core ne relit le détecteur qu'au rafraîchissement global
     (30 s). On l'interroge toutes les 2 s, comme l'ancien fork, pour que la
     lumière automatique du salon réagisse vite. Le minuteur est arrêté au
-    déchargement de l'entité (async_on_remove).
+    déchargement de l'entité (async_on_remove). Même code que la PR core #191658.
     """
 
     _attr_device_class = BinarySensorDeviceClass.MOTION
     _attr_name = None
+
+    def __init__(self, router: FreeboxRouter, node: dict[str, Any]) -> None:
+        """Initialize a Freebox motion binary sensor."""
+        super().__init__(router, node)
+        # One read at a time, so a slow response cannot overwrite a newer state
+        self._read_lock = asyncio.Lock()
+
+    @override
+    async def async_update_signal(self) -> None:
+        """Update name & state once any running read is done."""
+        async with self._read_lock:
+            await super().async_update_signal()
 
     @override
     async def async_added_to_hass(self) -> None:
@@ -133,14 +146,23 @@ class FreeboxPirSensor(FreeboxHomeBinarySensor):
 
     async def _async_poll_motion(self, _now: datetime) -> None:
         """Relit le détecteur et n'écrit l'état que s'il a changé."""
-        try:
-            value = await self.get_home_endpoint_value(self._command_id)
-        except (HttpRequestError, ClientError, TimeoutError, RuntimeError):
-            return  # le rafraîchissement global de 30 s reste en place
-        state = self._edit_state(value)
-        if state != self._attr_is_on:
-            self._attr_is_on = state
-            self.async_write_ha_state()
+        if self._read_lock.locked():
+            return
+        async with self._read_lock:
+            try:
+                value = await self.get_home_endpoint_value(self._command_id)
+            except (
+                AuthorizationError,
+                HttpRequestError,
+                ClientError,
+                TimeoutError,
+                RuntimeError,
+            ):
+                return  # le rafraîchissement global de 30 s reste en place
+            state = self._edit_state(value)
+            if state != self._attr_is_on:
+                self._attr_is_on = state
+                self.async_write_ha_state()
 
 
 class FreeboxDwsSensor(FreeboxHomeBinarySensor):

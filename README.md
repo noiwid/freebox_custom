@@ -5,12 +5,14 @@
 L'intégration **Freebox officielle** de Home Assistant, avec ce qui lui manque encore pour la Freebox Delta (v7) et son pack sécurité :
 
 - **Volets roulants RTS** (`cover`) : monter, descendre, stop. Les volets doivent d'abord être appairés dans l'application Freebox Home.
-- **Volets IO, stores et portes de garage** (`cover`, catégories `shutter` et `opener`) : avec position. Code repris de la version 2025.01, pas encore retesté sur ce matériel : ouvrez une issue si quelque chose cloche.
+- **Volets IO, stores et portes de garage** (`cover`, catégories `shutter` et `opener`) : avec position.
+
+La partie volets est depuis la 2026.10.4.4 le code de la [PR core #188666](https://github.com/home-assistant/core/pull/188666) de slater0013, repris tel quel (RTS testés ici, IO testés par lui). Une fois cette PR fusionnée, ce dépôt ne servira plus qu'au détecteur de mouvement.
 - **Détecteur de mouvement réactif** : la Freebox ne pousse pas les détections, l'intégration officielle ne les lit qu'au rythme de sa mise à jour générale. Ici le détecteur est interrogé toutes les 2 secondes.
 
 Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
 
-**Version actuelle : 2026.10.4.3**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
+**Version actuelle : 2026.10.4.4**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
 
 ## Installation
 
@@ -37,9 +39,9 @@ L'ancienne version de ce dépôt reposait sur un fork de 2020 de l'intégration.
 
 | Fichier | Changement |
 |---|---|
-| `cover.py` | Nouveau : volets RTS (`basic_shutter`), volets IO (`shutter`), stores et portes de garage (`opener`) |
-| `const.py` | Catégories `SHUTTER`, `IO_SHUTTER`, `OPENER` chargées, plateforme `cover` ajoutée |
-| `entity.py` | `set_home_endpoint_value` accepte une position (entier) |
+| `cover.py` | Nouveau : volets RTS (`basic_shutter`), volets IO (`shutter`), stores et portes de garage (`opener`), code de la PR core #188666 |
+| `const.py` | Catégories `BASIC_SHUTTER`, `SHUTTER`, `OPENER` chargées, plateforme `cover` ajoutée (PR #188666) |
+| `entity.py` | `set_home_endpoint_value` accepte une valeur quelconque, position comprise (PR #188666) |
 | `binary_sensor.py` | Détecteur de mouvement interrogé toutes les 2 s (même code que la PR core #191658) |
 | `manifest.json` | Champ `version` requis pour une intégration personnalisée |
 | `translations/` | `en.json` et `fr.json` (les traductions de l'officielle ne sont pas reprises automatiquement) |

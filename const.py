@@ -64,6 +64,7 @@ class FreeboxHomeCategory(enum.StrEnum):
     """Freebox Home categories."""
 
     ALARM = "alarm"
+    BASIC_SHUTTER = "basic_shutter"
     CAMERA = "camera"
     DWS = "dws"
     IOHOME = "iohome"
@@ -71,10 +72,7 @@ class FreeboxHomeCategory(enum.StrEnum):
     OPENER = "opener"
     PIR = "pir"
     RTS = "rts"
-    # Ajout local : volets Somfy RTS de la Freebox Delta (catégorie absente du core)
-    SHUTTER = "basic_shutter"
-    # Ajout local : volets IO avec position (catégorie absente du core)
-    IO_SHUTTER = "shutter"
+    SHUTTER = "shutter"
 
 
 CATEGORY_TO_MODEL = {
@@ -84,18 +82,19 @@ CATEGORY_TO_MODEL = {
     FreeboxHomeCategory.KFB: "F-HAKFB01A",
     FreeboxHomeCategory.ALARM: "F-MSEC07A",
     FreeboxHomeCategory.RTS: "RTS",
+    FreeboxHomeCategory.BASIC_SHUTTER: "RTS",
     FreeboxHomeCategory.IOHOME: "IOHome",
 }
 
 HOME_COMPATIBLE_CATEGORIES = [
     FreeboxHomeCategory.ALARM,
+    FreeboxHomeCategory.BASIC_SHUTTER,
     FreeboxHomeCategory.CAMERA,
     FreeboxHomeCategory.DWS,
     FreeboxHomeCategory.IOHOME,
     FreeboxHomeCategory.KFB,
+    FreeboxHomeCategory.OPENER,
     FreeboxHomeCategory.PIR,
     FreeboxHomeCategory.RTS,
     FreeboxHomeCategory.SHUTTER,
-    FreeboxHomeCategory.IO_SHUTTER,
-    FreeboxHomeCategory.OPENER,
 ]

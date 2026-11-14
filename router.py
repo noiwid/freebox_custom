@@ -314,6 +314,27 @@ class FreeboxRouter:
         if new_device:
             async_dispatcher_send(self.hass, self.signal_home_device_new)
 
+    async def get_profiles(self) -> list[dict[str, Any]]:
+        """Return the parental control profiles, with their name."""
+        # The library only covers the older per-device filters
+        return await self._api._access.get("profile/") or []  # noqa: SLF001
+
+    async def get_network_control(self, profile_id: int) -> dict[str, Any]:
+        """Return the Internet access state of a profile."""
+        return await self._api._access.get(  # noqa: SLF001
+            f"network_control/{profile_id}"
+        )
+
+    async def set_profile_paused(self, profile_id: int, paused: bool) -> None:
+        """Pause the Internet access of a profile, or give it back to its planning."""
+        payload: dict[str, Any] = {"override": paused}
+        if paused:
+            # 0: until the pause is lifted
+            payload.update({"override_mode": "denied", "override_until": 0})
+        await self._api._access.put(  # noqa: SLF001
+            f"network_control/{profile_id}", payload
+        )
+
     async def reboot(self) -> None:
         """Reboot the Freebox."""
         await self._api.system.reboot()

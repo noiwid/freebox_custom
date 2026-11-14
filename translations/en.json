@@ -56,6 +56,9 @@
     "switch": {
       "wifi": {
         "name": "Wi-Fi"
+      },
+      "profile_internet": {
+        "name": "Internet access {name}"
       }
     }
   }

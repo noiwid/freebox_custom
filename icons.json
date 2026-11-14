@@ -20,6 +20,12 @@
         "state": {
           "off": "mdi:wifi-off"
         }
+      },
+      "profile_internet": {
+        "default": "mdi:web",
+        "state": {
+          "off": "mdi:web-off"
+        }
       }
     }
   }

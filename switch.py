@@ -8,7 +8,7 @@ from freebox_api.exceptions import HttpRequestError, InsufficientPermissionsErro
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import Unauthorized, UnknownUser
+from homeassistant.exceptions import HomeAssistantError, Unauthorized, UnknownUser
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import CONF_ALLOWED_USERS
@@ -143,6 +143,10 @@ class FreeboxProfileSwitch(SwitchEntity):
                 " parental control. Please refer to documentation"
             )
             return
+        except HttpRequestError as err:
+            raise HomeAssistantError(
+                f"The Freebox refused to change the profile: {err}"
+            ) from err
         await self.async_update()
 
     @override

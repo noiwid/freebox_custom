@@ -327,10 +327,18 @@ class FreeboxRouter:
 
     async def set_profile_paused(self, profile_id: int, paused: bool) -> None:
         """Pause the Internet access of a profile, or give it back to its planning."""
-        payload: dict[str, Any] = {"override": paused}
+        # The router refuses an update that does not carry the devices of the
+        # profile ("Liste d'adresses MAC manquante"): send them back unchanged
+        current = await self.get_network_control(profile_id)
+        payload: dict[str, Any] = {
+            "macs": current.get("macs", []),
+            "cdayranges": current.get("cdayranges", []),
+            "override": paused,
+            "override_mode": "denied" if paused else "allowed",
+        }
         if paused:
             # 0: until the pause is lifted
-            payload.update({"override_mode": "denied", "override_until": 0})
+            payload["override_until"] = 0
         await self._api._access.put(  # noqa: SLF001
             f"network_control/{profile_id}", payload
         )

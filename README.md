@@ -13,7 +13,7 @@ La partie volets est depuis la 2026.10.4.4 le code de la [PR core #188666](https
 
 Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
 
-**Version actuelle : 2026.10.4.5**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
+**Version actuelle : 2026.10.4.6**, basée sur l'intégration officielle de Home Assistant 2026.10.4 (`freebox-api` 1.3.1).
 
 ## Installation
 

@@ -6,11 +6,18 @@ from typing import Any, override
 from freebox_api.exceptions import AuthorizationError, HttpRequestError
 import probatio
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .const import DOMAIN
+from .const import CONF_ALLOWED_USERS, DOMAIN
 from .router import (
     async_forget_registration,
     get_api,
@@ -29,6 +36,13 @@ class FreeboxFlowHandler(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize config flow."""
         self._data: dict[str, Any] = {}
+
+    @staticmethod
+    @callback
+    @override
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Return the options flow."""
+        return FreeboxOptionsFlow()
 
     @override
     async def async_step_user(
@@ -123,3 +137,55 @@ class FreeboxFlowHandler(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="missing_api_domain")
         port = zeroconf_properties.get("https_port") or discovery_info.port
         return await self.async_step_user({CONF_HOST: host, CONF_PORT: port})
+
+
+class FreeboxOptionsFlow(OptionsFlow):
+    """Options: who may pause a parental control profile from Home Assistant."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the users allowed to turn the Internet access switches."""
+        if user_input is not None:
+            return self.async_create_entry(
+                data={**self.config_entry.options, **user_input}
+            )
+        # System users (Supervisor, add-ons, cloud) never flip a switch
+        users = sorted(
+            (
+                user
+                for user in await self.hass.auth.async_get_users()
+                if not user.system_generated and user.is_active
+            ),
+            key=lambda user: (user.name or "").lower(),
+        )
+        user_ids = {user.id for user in users}
+        current = [
+            user_id
+            for user_id in self.config_entry.options.get(CONF_ALLOWED_USERS, [])
+            if user_id in user_ids
+        ]
+        return self.async_show_form(
+            step_id="init",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Optional(
+                        CONF_ALLOWED_USERS, default=current
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value=user.id,
+                                    label=f"{user.name} (administrator)"
+                                    if user.is_admin
+                                    else (user.name or user.id),
+                                )
+                                for user in users
+                            ],
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )

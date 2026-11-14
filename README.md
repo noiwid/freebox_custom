@@ -8,7 +8,7 @@ L'intégration **Freebox officielle** de Home Assistant, avec ce qui lui manque 
 - **Volets IO, stores et portes de garage** (`cover`, catégories `shutter` et `opener`) : avec position.
 
 La partie volets est depuis la 2026.10.4.4 le code de la [PR core #188666](https://github.com/home-assistant/core/pull/188666) de slater0013, repris tel quel (RTS testés ici, IO testés par lui). Une fois cette PR fusionnée, ce dépôt ne servira plus qu'au détecteur de mouvement.
-- **Pause Internet par profil** (`switch`) : un interrupteur « Accès Internet <profil> » par profil du contrôle parental. Éteint, il met le profil en pause comme le bouton Pause de Freebox OS ; rallumé, le profil reprend son planning. L'application Home Assistant doit avoir le droit « Contrôle parental » dans Freebox OS (Paramètres, Gestion des accès, Applications), puis recharger l'intégration.
+- **Pause Internet par profil** (`switch`) : un interrupteur « Accès Internet <profil> » par profil du contrôle parental. Éteint, il met le profil en pause comme le bouton Pause de Freebox OS ; rallumé, le profil reprend son planning. L'application Home Assistant doit avoir le droit « Contrôle parental » dans Freebox OS (Paramètres, Gestion des accès, Applications), puis recharger l'intégration. L'option « Utilisateurs autorisés à mettre un profil en pause » (bouton Configurer de l'intégration) réserve ces interrupteurs aux utilisateurs cochés et aux administrateurs ; les automatisations ne sont pas concernées.
 - **Détecteur de mouvement réactif** : la Freebox ne pousse pas les détections, l'intégration officielle ne les lit qu'au rythme de sa mise à jour générale. Ici le détecteur est interrogé toutes les 2 secondes.
 
 Tout le reste vient de l'intégration officielle, sans modification : alarme, détecteurs d'ouverture et de mouvement, caméras, suivi des appareils du réseau, débits, températures, ventilateurs, disques, Wi-Fi, appels manqués, redémarrage de la box.
@@ -43,6 +43,7 @@ L'ancienne version de ce dépôt reposait sur un fork de 2020 de l'intégration.
 | `cover.py` | Nouveau : volets RTS (`basic_shutter`), volets IO (`shutter`), stores et portes de garage (`opener`), code de la PR core #188666 |
 | `const.py` | Catégories `BASIC_SHUTTER`, `SHUTTER`, `OPENER` chargées, plateforme `cover` ajoutée (PR #188666) |
 | `entity.py` | `set_home_endpoint_value` accepte une valeur quelconque, position comprise (PR #188666) |
+| `config_flow.py`, `const.py` | Option `allowed_users` : utilisateurs autorisés à mettre un profil en pause |
 | `switch.py`, `router.py` | Interrupteur « Accès Internet <profil> » par profil du contrôle parental (API `profile/` et `network_control/`) |
 | `binary_sensor.py` | Détecteur de mouvement interrogé toutes les 2 s (même code que la PR core #191658) |
 | `manifest.json` | Champ `version` requis pour une intégration personnalisée |

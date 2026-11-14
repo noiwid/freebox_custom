@@ -15,6 +15,9 @@ APP_DESC = {
 }
 API_VERSION = "v6"
 
+# Option: the users allowed to pause a parental control profile (empty: everyone)
+CONF_ALLOWED_USERS = "allowed_users"
+
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,
     Platform.BINARY_SENSOR,

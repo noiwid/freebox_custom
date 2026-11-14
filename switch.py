@@ -6,9 +6,12 @@ from typing import Any, override
 from freebox_api.exceptions import HttpRequestError, InsufficientPermissionsError
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import Unauthorized, UnknownUser
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import CONF_ALLOWED_USERS
 from .router import FreeboxConfigEntry, FreeboxRouter
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,8 +109,32 @@ class FreeboxProfileSwitch(SwitchEntity):
         self._attr_device_info = router.device_info
         self._attr_unique_id = f"{router.mac} profile {self._profile_id} internet"
 
+    async def _async_check_user(self) -> None:
+        """Refuse the action to a user the option does not allow.
+
+        Home Assistant lets every user flip any switch. When the option lists
+        users, only they and the administrators may pause or resume a profile.
+        A call without a user (automation, script run by the system) is trusted.
+        """
+        allowed = self._router.config_entry.options.get(CONF_ALLOWED_USERS) or []
+        user_id = self._context.user_id if self._context else None
+        if not allowed or not user_id:
+            return
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None:
+            raise UnknownUser(context=self._context, permission=POLICY_CONTROL)
+        if user.is_admin or user.id in allowed:
+            return
+        _LOGGER.warning(
+            "Action on %s refused: user %s is not allowed to manage the profiles",
+            self.entity_id,
+            user.name,
+        )
+        raise Unauthorized(context=self._context, permission=POLICY_CONTROL)
+
     async def _async_set_paused(self, paused: bool) -> None:
         """Pause or resume the Internet access of the profile."""
+        await self._async_check_user()
         try:
             await self._router.set_profile_paused(self._profile_id, paused)
         except InsufficientPermissionsError:

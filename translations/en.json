@@ -61,5 +61,18 @@
         "name": "Internet access {name}"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Parental control",
+        "data": {
+          "allowed_users": "Users allowed to pause a profile"
+        },
+        "data_description": {
+          "allowed_users": "Leave empty to let every Home Assistant user turn the Internet access switches of the parental control profiles (default). As soon as users are ticked, only they and the administrators can: the non-administrator account of a child is refused. Automations and scripts run by Home Assistant itself are not concerned. Give the child a non-administrator account: an administrator can change this option."
+        }
+      }
+    }
   }
 }

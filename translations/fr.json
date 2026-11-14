@@ -61,5 +61,18 @@
         "name": "Accès Internet {name}"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Contrôle parental",
+        "data": {
+          "allowed_users": "Utilisateurs autorisés à mettre un profil en pause"
+        },
+        "data_description": {
+          "allowed_users": "Laisser vide pour que tous les utilisateurs de Home Assistant puissent utiliser les interrupteurs « Accès Internet » des profils du contrôle parental (par défaut). Dès que des utilisateurs sont cochés, seuls eux et les administrateurs le peuvent : le compte non administrateur d'un enfant est refusé. Les automatisations et les scripts lancés par Home Assistant lui-même ne sont pas concernés. Donnez à l'enfant un compte non administrateur : un administrateur peut modifier cette option."
+        }
+      }
+    }
   }
 }
